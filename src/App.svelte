@@ -1,14 +1,29 @@
 <script>
 	import { onDestroy, onMount } from "svelte";
+	import IoIosShare from "svelte-icons/io/IoIosShare.svelte";
+	import IoIosVolumeOff from "svelte-icons/io/IoIosVolumeOff.svelte";
+	import IoIosVolumeHigh from "svelte-icons/io/IoIosVolumeHigh.svelte";
+	import IoMdEyeOff from "svelte-icons/io/IoMdEyeOff.svelte";
+	import IoMdEye from "svelte-icons/io/IoMdEye.svelte";
+	import IoIosExpand from "svelte-icons/io/IoIosExpand.svelte";
+	import IoMdCall from "svelte-icons/io/IoMdCall.svelte";
 
 	let token = null;
 	// let token = "<insert token here>"
+	// token =
+	// "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiIsImN0eSI6InR3aWxpby1mcGE7dj0xIn0.eyJqdGkiOiJTS2JiN2YzZGMzZTFkYjkwY2VhNzEyMWNjOTNmMDM1NGRkLTE2MDIxNTgwMTAiLCJpc3MiOiJTS2JiN2YzZGMzZTFkYjkwY2VhNzEyMWNjOTNmMDM1NGRkIiwic3ViIjoiQUMxNTIwMDRlZDIxNTMwN2IzM2NkODM1ODNjMWJhZTE4MSIsImV4cCI6MTYwMjE2MTYxMCwiZ3JhbnRzIjp7ImlkZW50aXR5Ijoib3dlbiIsInZpZGVvIjp7InJvb20iOiJjb29sIHJvb20ifX19.RO8P1WsBjcBmuIMl515rH2_3pIoAMWCdrm2Ei9JJbBk";
+
 	let roomname = null;
 	// let roomname = "cool room";
+	// roomname = "cool room";
 	let joinPromise = null;
 	let room = null;
 	let mainStream = null;
-	let localStream = { videoStream: null, audioStream: null };
+	let localStream = {
+		videoStream: null,
+		audioStream: null,
+		screenStream: null,
+	};
 	let streams = [];
 	let muted = false;
 	let videoHidden = false;
@@ -16,7 +31,7 @@
 
 	const volumeNodeSource =
 		"/wp-content/plugins/BuddyBoss-Video/volumeprocessor.js";
-
+	// "volumeprocessor.js";
 	let audioContext = null;
 
 	onDestroy(() => {
@@ -77,12 +92,13 @@
 			room = _room;
 			console.log(`Successfully joined a Room: ${room}`);
 			console.log(room.localParticipant.videoTracks);
-			localStream = {
-				videoStream: room.localParticipant.videoTracks.values().next()
-					.value.track.mediaStreamTrack,
-				audioStream: room.localParticipant.audioTracks.values().next()
-					.value.track.mediaStreamTrack,
-			};
+			localStream.videoStream = room.localParticipant.videoTracks
+				.values()
+				.next().value.track.mediaStreamTrack;
+			localStream.audioStream = room.localParticipant.audioTracks
+				.values()
+				.next().value.track.mediaStreamTrack;
+
 			volumes[room.localParticipant.identity] = 0;
 
 			room.participants.forEach(addParticipant);
@@ -91,7 +107,10 @@
 
 			room.on("disconnected", (room) => {
 				streams = [];
-				localStream = null;
+				localStream.audioStream = null;
+				localStream.videoStream = null;
+				localStream.screenStream = null;
+				localStream.volumeNode = null;
 			});
 
 			localStream.volumeNode = createVolumeNode(
@@ -117,6 +136,24 @@
 		});
 	}
 
+	function shareScreen() {
+		if (localStream.screenStream == null) {
+			navigator.mediaDevices.getDisplayMedia().then((stream) => {
+				console.log(stream);
+				localStream.screenStream = stream.getTracks()[0];
+				room.localParticipant.publishTrack(
+					new window.Twilio.Video.LocalVideoTrack(
+						stream.getTracks()[0]
+					)
+				);
+			});
+		} else {
+			room.localParticipant.unpublishTrack(localStream.screenStream);
+			localStream.screenStream.stop();
+			localStream.screenStream = null;
+		}
+	}
+
 	function endCall() {
 		if (room == null) {
 			initializeRoom();
@@ -126,7 +163,10 @@
 			joinPromise = null;
 			streams = [];
 			volumes = {};
-			localStream = { audioStream: null, videoStream: null };
+			localStream.audioStream = null;
+			localStream.videoStream = null;
+			localStream.screenStream = null;
+			localStream.volumeNode = null;
 		}
 	}
 
@@ -171,6 +211,12 @@
 		participant.on("trackSubscribed", (track) => {
 			updateStream(participant, track);
 		});
+		participant.on("trackUnsubscribed", (track, publication) => {
+			console.log("unsubscribed", participant, track, publication);
+		});
+		participant.on("trackUnpublished", (publication) => {
+			console.log("unpublished", publication);
+		});
 		streams = [...streams, data];
 	}
 
@@ -180,13 +226,17 @@
 
 	function srcObject(node, streams) {
 		if (streams != null) {
-			streams = streams.filter((x) => x != null);
+			streams = Array.isArray(streams)
+				? streams.filter((x) => x != null)
+				: streams;
 			node.srcObject = new MediaStream(streams);
 		}
 		return {
 			update(nextStreams) {
 				if (nextStreams != null) {
-					nextStreams = nextStreams.filter((x) => x != null);
+					nextStreams = Array.isArray(nextStreams)
+						? nextStreams.filter((x) => x != null)
+						: nextStreams;
 					node.srcObject = new MediaStream(nextStreams);
 				}
 			},
@@ -226,14 +276,38 @@
 	video {
 		max-width: 100%;
 		max-height: 100%;
-		display: block;
-		margin: auto auto;
+		position: absolute;
+		top: 50%;
+		left: 50%;
+		transform: translate(-50%, -50%);
+		-ms-transform: translate(-50%, -50%);
+	}
+	.icon {
+		display: inline-block;
+		color: white;
+		width: 16px;
+		height: 16px;
+		margin-top: auto;
+		margin-bottom: auto;
+		margin-right: 10px;
+	}
+	.icon-button {
+		display: flex;
+		align-content: center;
 	}
 </style>
 
+<svelte:head>
+	<script
+		src="//media.twiliocdn.com/sdk/js/video/releases/2.7.2/twilio-video.min.js">
+	</script>
+</svelte:head>
+
 <div>
 	{#if joinPromise == null}
-		<button on:click={initialize}>Start Call</button>
+		<button class="icon-button" on:click={initialize}><div class="icon">
+				<IoMdCall />
+			</div>Start Call</button>
 	{:else}
 		{#await joinPromise}
 			<p>Connecting...</p>
@@ -283,7 +357,7 @@
 									<div class="video-contents">
 										<video
 											autoplay
-											use:srcObject={[localStream.videoStream, localStream.audioStream]}
+											use:srcObject={localStream.screenStream != null ? [localStream.screenStream, localStream.videoStream] : [localStream.videoStream, localStream.audioStream]}
 											muted>
 											<track kind="captions" />
 										</video>
@@ -308,24 +382,51 @@
 										margin: 2px;
 									}
 								</style><button
+									class="icon-button"
 									on:click={toggleMute}>{#if muted}
-										Unmute
-									{:else}Mute{/if}</button>
-								<button on:click={toggleVideo}>{#if videoHidden}
-										Show video
-									{:else}Stop video{/if}</button>
-								<button on:click={endCall}>{#if room == null}
+										<div class="icon">
+											<IoIosVolumeHigh />
+										</div>Unmute
+									{:else}
+										<div class="icon">
+											<IoIosVolumeOff />
+										</div>Mute
+									{/if}</button>
+								<button
+									class="icon-button"
+									on:click={toggleVideo}>{#if videoHidden}
+										<div class="icon">
+											<IoMdEye />
+										</div>Show video
+									{:else}
+										<div class="icon">
+											<IoMdEyeOff />
+										</div>Stop video
+									{/if}</button>
+								<button
+									class="icon-button"
+									on:click={endCall}><div class="icon">
+										<IoMdCall />
+									</div>{#if room == null}
 										Start Call
 									{:else}End Call{/if}</button>
+								<button
+									class="icon-button"
+									on:click={shareScreen}>
+									<div class="icon">
+										<IoIosShare />
+									</div>Share screen</button>
 							</div>
 						</div>
 					</div>
 				</div>
 				<div
 					class="sub container"
-					style="flex: 1; display: flex; flex-wrap: wrap;">
+					style="flex: 1; display: flex; flex-wrap: wrap; align-content: flex-start;">
 					{#each streams as stream (stream.id)}
-						<div class="remote">
+						<div
+							class="remote"
+							style="position: relative; margin-bottom: 10px;">
 							{#if streams.length <= 4}
 								<style>
 									.remote {
@@ -362,11 +463,20 @@
 									</div>
 								</div>
 							</div>
-							<span>{stream.id}</span>
-							<button
-								on:click={() => {
-									mainStream = stream.videoStream.clone();
-								}}>Pin</button>
+							<div
+								style="position: absolute; top: 0; right: 0; background-color: rgba(0, 0, 0, 0.2); display: flex; justify-content: center;">
+								<span
+									style="color: white; margin: auto 5px;">{stream.id}</span>
+								<button
+									style="padding: 0 10px; display: flex; justify-content: center"
+									on:click={() => {
+										mainStream = stream.videoStream.clone();
+									}}><div
+										class="icon"
+										style="margin-right: 0">
+										<IoIosExpand />
+									</div></button>
+							</div>
 						</div>
 					{/each}
 				</div>
