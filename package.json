@@ -17,7 +17,9 @@
   },
   "dependencies": {
     "sirv-cli": "^1.0.0",
+    "svelte-confirm": "0.0.0",
     "svelte-icons": "^2.1.0",
+    "svelte-loading-spinners": "^0.1.1",
     "twilio-video": "^2.7.2"
   }
 }
