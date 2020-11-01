@@ -20,6 +20,7 @@
     "svelte-confirm": "0.0.0",
     "svelte-icons": "^2.1.0",
     "svelte-loading-spinners": "^0.1.1",
+    "svelte-tooltip": "^1.2.0",
     "twilio-video": "^2.7.2"
   }
 }

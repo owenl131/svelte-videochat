@@ -10,13 +10,16 @@
 	import VideoPane from "./VideoPane.svelte";
 	import IoIosVideocam from "svelte-icons/io/IoIosVideocam.svelte";
 	import { DoubleBounce } from "svelte-loading-spinners";
+	import SvelteTooltip from "svelte-tooltip";
+	import MdScreenShare from "svelte-icons/md/MdScreenShare.svelte";
+	import MdStopScreenShare from "svelte-icons/md/MdStopScreenShare.svelte";
 
 	/**
 	 * TODO:
 	 * make sure all resources are closed when disconnecting - volumenode and screensharing
 	 * display symbol on muted
 	 */
-	export let debugMode = true;
+	export let debugMode = false;
 
 	let token = debugMode
 		? "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiIsImN0eSI6InR3aWxpby1mcGE7dj0xIn0.eyJqdGkiOiJTS2JiN2YzZGMzZTFkYjkwY2VhNzEyMWNjOTNmMDM1NGRkLTE2MDM5ODMwOTYiLCJpc3MiOiJTS2JiN2YzZGMzZTFkYjkwY2VhNzEyMWNjOTNmMDM1NGRkIiwic3ViIjoiQUMxNTIwMDRlZDIxNTMwN2IzM2NkODM1ODNjMWJhZTE4MSIsImV4cCI6MTYwMzk4NjY5NiwiZ3JhbnRzIjp7ImlkZW50aXR5Ijoib3dlbiIsInZpZGVvIjp7InJvb20iOiJjb29sIHJvb20ifX19.so-lJx-Kq7Kzu_6zv01P_49xnlqmEMrZRsreJC2R-zk"
@@ -44,6 +47,7 @@
 		videoStream: null,
 		audioStream: null,
 		screenStream: null,
+		audioOutput: null,
 	};
 	let streams = [];
 	let muted = false;
@@ -60,6 +64,7 @@
 		localStream.id = null;
 		localStream.videoStream = null;
 		localStream.audioStream = null;
+		localStream.audioOutput = null;
 		if (localStream.screenStream != null) {
 			localStream.screenStream.stop();
 			localStream.screenStream = null;
@@ -154,12 +159,20 @@
 
 			room.on("trackSubscribed", (track, publication, part) => {
 				console.log("trackSubscribed: ", part);
-				updateStream(part);
+				if (publication.kind === "audio") {
+					addAudioStream(part);
+				} else {
+					updateVideoStream(part);
+				}
 			});
 
 			room.on("trackPublished", (publication, part) => {
 				console.log("trackPublished: ", part);
-				updateStream(part);
+				if (publication.kind === "audio") {
+					addAudioStream(part);
+				} else {
+					updateVideoStream(part);
+				}
 			});
 
 			room.on("trackUnsubscribed", (track, publication, part) => {
@@ -174,22 +187,26 @@
 			room.on("trackUnpublished", (publication, part) => {
 				console.log("trackUnpublished: ", part);
 				if (publication.kind === "audio") {
-					addAudioStream(part);
+					removeAudioStream(part);
 				} else {
 					updateVideoStream(part);
 				}
 			});
 
 			room.on("trackDisabled", (publication, part) => {
-				if (publication.kind === "audio")
+				if (publication.kind === "audio") {
 					remoteMuted[part.identity] = true;
+					remoteMuted = remoteMuted;
+				}
 
 				console.log("trackDisabled: ", publication.kind, part.identity);
 			});
 
 			room.on("trackEnabled", (publication, part) => {
-				if (publication.kind === "audio")
+				if (publication.kind === "audio") {
 					remoteMuted[part.identity] = false;
+					remoteMuted = remoteMuted;
+				}
 
 				console.log("trackEnabled: ", publication.kind, part.identity);
 			});
@@ -261,15 +278,6 @@
 	function updateVideoStream(participant) {
 		for (const elem of streams) {
 			if (elem.id == participant.identity) {
-				elem.audioStreams = Array.from(participant.audioTracks.values())
-					.filter((x) => x.track != null)
-					.map((x) => x.track.mediaStreamTrack);
-				if (elem.audioStreams.length >= 1 && elem.volumeNode == null) {
-					elem.volumeNode = createVolumeNode(
-						elem.id,
-						elem.audioStreams[0]
-					);
-				}
 				elem.videoStreams = Array.from(participant.videoTracks.values())
 					.filter((x) => x.track != null)
 					.map((x) => x.track.mediaStreamTrack);
@@ -284,10 +292,11 @@
 			if (elem.id == participant.identity) {
 				elem.audioStreams = Array.from(participant.audioTracks.values())
 					.filter((x) => x.track != null)
-					.map((x) => x.track.mediaStreamTrack);
+					.map((x) => x.track.mediaStreamTrack)
+					.filter((x) => x != null);
 				if (elem.audioStreams.length >= 1 && elem.volumeNode == null) {
 					elem.audioOutput = audioContext.createMediaStreamSource(
-						elem.audioStreams
+						new MediaStream(elem.audioStreams)
 					);
 					elem.volumeNode = createVolumeNode(elem.id);
 					elem.audioOutput.connect(elem.volumeNode);
@@ -321,7 +330,8 @@
 		};
 		volumes[data.id] = 0;
 		streams = [...streams, data];
-		updateStream(participant);
+		updateVideoStream(participant);
+		addAudioStream(participant);
 		joinCallAudio.play();
 	}
 
@@ -393,12 +403,26 @@
 			},
 		};
 	}
+
+	function pinStream(id) {
+		if (mainStreamId == id) {
+			mainStreamPinned = true;
+			return;
+		}
+		for (const elem of streams) {
+			if (elem.id == maxId) {
+				mainStream = elem.videoStreams[0].clone();
+				mainStreamId = id;
+				mainStreamPinned = true;
+			}
+		}
+	}
 </script>
 
 <style>
-	div.container {
-		/* border: 1px solid rgb(100, 100, 100); */
-		background-color: rgb(200, 200, 200);
+	div {
+		margin: 0;
+		padding: 0;
 	}
 	.video-outer > img {
 		width: 66%;
@@ -431,16 +455,17 @@
 	.icon {
 		display: inline-block;
 		color: white;
-		width: 16px;
-		height: 16px;
-		margin-top: auto;
-		margin-bottom: auto;
-		margin-right: 10px;
+		width: 24px;
+		height: 24px;
+		margin: 4px 0px;
+		align-self: center;
 	}
 	.icon-button {
 		display: flex;
+		flex-direction: row;
 		align-content: center;
 		margin: 3px 2px;
+		line-height: initial;
 	}
 </style>
 
@@ -481,14 +506,17 @@
 		</div>
 		<button class="icon-button" on:click={initialize}><div class="icon">
 				<IoMdCall />
-			</div>Start Call</button>
+			</div><span style="align-self: center; margin-left: 10px;">Start
+				Call</span></button>
 	</div>
 {:else}
 	{#await joinPromise}
 		<!-- Wait for room to be created -->
 		<div
 			style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; flex-direction: column;">
-			<DoubleBounce size="60" />
+			<div style="margin-top: 50px; margin-bottom: 20px">
+				<DoubleBounce size="60" />
+			</div>
 			<p>Connecting...</p>
 		</div>
 	{:then room}
@@ -496,57 +524,77 @@
 		<div style="width: 100%; height: 100%; position: relative">
 			<!-- Control panel -->
 			<div
-				style="position: sticky; top: 10px; width: 100%; display: flex; flex-direction: row; justify-content: center; align-items: center; z-index: 40">
+				style="position: fixed; top: 100px; width: 100%; display: flex; flex-direction: row; justify-content: center; align-items: center; z-index: 40">
 				<!-- Mute -->
-				<button class="icon-button" on:click={toggleMute}>{#if muted}
-						<div class="icon">
-							<IoIosVolumeHigh />
-						</div>Unmute
-					{:else}
-						<div class="icon">
-							<IoIosVolumeOff />
-						</div>Mute
-					{/if}</button>
+				<SvelteTooltip tip={muted ? 'Unmute' : 'Mute'} bottom>
+					<button
+						class="icon-button"
+						on:click={toggleMute}
+						style={muted ? 'background: grey' : ''}>{#if muted}
+							<div class="icon">
+								<IoIosVolumeHigh />
+							</div>
+						{:else}
+							<div class="icon">
+								<IoIosVolumeOff />
+							</div>
+						{/if}</button>
+				</SvelteTooltip>
 				<!-- Turn video on/off -->
-				<button
-					class="icon-button"
-					on:click={toggleVideo}>{#if videoHidden}
+				<SvelteTooltip
+					tip={videoHidden ? 'Show video' : 'Stop video'}
+					bottom>
+					<button
+						class="icon-button"
+						style={videoHidden ? 'background: grey' : ''}
+						on:click={toggleVideo}>{#if videoHidden}
+							<div class="icon">
+								<IoMdEye />
+							</div>
+						{:else}
+							<div class="icon">
+								<IoMdEyeOff />
+							</div>
+						{/if}</button>
+				</SvelteTooltip>
+				<!-- Screen sharing -->
+				<SvelteTooltip
+					tip={localStream.screenStream != null ? 'Unshare screen' : 'Share screen'}
+					bottom>
+					<button class="icon-button" on:click={shareScreen}>
 						<div class="icon">
-							<IoMdEye />
-						</div>Show video
-					{:else}
-						<div class="icon">
-							<IoMdEyeOff />
-						</div>Stop video
-					{/if}</button>
+							{#if localStream.screenStream != null}
+								<MdStopScreenShare />
+							{:else}
+								<MdScreenShare />
+							{/if}
+						</div></button>
+				</SvelteTooltip>
 				<!-- End call, request confirmation if there are other users in the call -->
-				{#if streams.length == 0}
-					<button class="icon-button" on:click={endCall}><div
-							class="icon">
-							<IoMdCall />
-						</div>End Call</button>
-				{:else}
-					<Confirm let:confirm={confirmThis}>
+				<SvelteTooltip tip={'End Call'} bottom>
+					{#if streams.length == 0}
 						<button
 							class="icon-button"
-							on:click={() => confirmThis(endCall)}><div
-								class="icon">
+							on:click={endCall}
+							style="background: red;"><div class="icon">
 								<IoMdCall />
-							</div>End Call</button>
-
-						<span slot="title"> End Call </span>
-						<span slot="description">
-							Are you sure you want to end the call?
-						</span>
-					</Confirm>
-				{/if}
-				<!-- Screen sharing -->
-				<button class="icon-button" on:click={shareScreen}>
-					<div class="icon">
-						<IoIosShare />
-					</div>{#if localStream.screenStream != null}
-						Unshare screen
-					{:else}Share screen{/if}</button>
+							</div></button>
+					{:else}
+						<Confirm let:confirm={confirmThis}>
+							<button
+								class="icon-button"
+								style="background: red;"
+								on:click={() => confirmThis(endCall)}><div
+									class="icon">
+									<IoMdCall />
+								</div></button>
+							<span slot="title"> End Call </span>
+							<span slot="description">
+								Are you sure you want to end the call?
+							</span>
+						</Confirm>
+					{/if}
+				</SvelteTooltip>
 			</div>
 			<!-- End control panel -->
 			<div
@@ -561,11 +609,12 @@
 							<div class="video-contents">
 								{#if mainStreamPinned}
 									<button
-										style="position: absolute; top: 0; right: 0; z-index: 10"
+										style="position: absolute; bottom: 10px; right: 10px; z-index: 10; line-height: initial"
 										on:click={() => {
 											mainStreamId = null;
 											mainStream = null;
 											mainStreamPinned = false;
+											buttonClickAudio.play();
 										}}>Unpin</button>
 								{/if}
 								<video use:srcObject={[mainStream]} autoplay>
@@ -583,20 +632,21 @@
 							{buttonClickAudio}
 							videoStreams={stream.videoStreams}
 							audioStreams={stream.audioStreams}
-							muted={false}
+							muted={remoteMuted[stream.id] || false}
 							mainId={mainStreamId}
 							mainPinned={mainStreamPinned}
 							id={stream.id}
+							pinPressed={pinStream}
+							rotateVideos={() => {
+								stream.videoStreams = [...stream.videoStreams.slice(1), ...stream.videoStreams.slice(0, 1)];
+								streams = streams;
+								if (mainStreamId == stream.id) {
+									mainStream = stream.videoStreams[0].clone();
+								}
+							}}
 							volume={volumes[stream.id] || 0} />
 					{/each}
 
-					<VideoPane
-						{buttonClickAudio}
-						muted={false}
-						mainId={mainStreamId}
-						mainPinned={mainStreamPinned}
-						id={'Hello'}
-						volume={0.1} />
 					<VideoPane
 						{buttonClickAudio}
 						{muted}
@@ -604,7 +654,7 @@
 						mainPinned={mainStreamPinned}
 						id={localStream.id}
 						videoStreams={[localStream.screenStream, localStream.videoStream]}
-						audioStreams={[localStream.audioStream]}
+						audioStreams={[]}
 						volume={volumes[localStream.id]} />
 				</div>
 			</div>

@@ -5,12 +5,13 @@
     import IoIosVolumeOff from "svelte-icons/io/IoIosVolumeOff.svelte";
 
     export let buttonClickAudio = undefined;
+    export let pinPressed = null;
+    export let rotateVideos = null;
 
     export let videoStreams = [];
     export let audioStreams = [];
     export let muted = false;
     export let mainId = null;
-    export let mainPinned = false;
     export let id = "";
     export let volume = 0;
 
@@ -46,6 +47,9 @@
 </script>
 
 <style>
+    * {
+        margin: 0;
+    }
     .video-outer > img {
         width: 66%;
     }
@@ -62,7 +66,7 @@
         bottom: 0;
         left: 0;
         right: 0;
-        background-color: rgb(50, 50, 50);
+        background-color: black;
     }
     video {
         max-width: 100%;
@@ -72,6 +76,13 @@
         left: 50%;
         transform: translate(-50%, -50%);
         -ms-transform: translate(-50%, -50%);
+    }
+    .icon-button {
+        display: flex;
+        align-content: center;
+        margin: 3px 2px;
+        line-height: initial;
+        padding: 2px 10px;
     }
     .icon {
         display: inline-block;
@@ -104,38 +115,39 @@
     </div>
     <div
         style="position: absolute; bottom: 0; right: 0; background-color: rgba(0, 0, 0, 0.4); display: flex; justify-content: center;">
-        <span style="color: white; margin: auto 5px;">{id} </span>
+        <span style="color: white; margin-left: 3px; align-self: center">{id}
+        </span>
         {#if muted}
-            <div style="height: 20px; width: 20px; display: inline-block">
+            <div
+                style="height: 20px; width: 20px; margin: 3px; display: inline-block; color: white; align-self: center">
                 <IoIosVolumeOff />
             </div>
         {/if}
-        <button
-            style="padding: 0 10px; display: flex; justify-content: center"
-            title="Click to maximise video"
-            on:click={() => {
-                buttonClickAudio.play();
-                if (videoStreams.length >= 1) {
-                    mainPinned = true;
-                    mainId = id;
-                }
-            }}><div class="icon" style="margin-right: 0">
-                <IoIosExpand />
-            </div></button>
-        {#if videoStreams.length > 1}
+        {#if pinPressed}
             <button
-                style="padding: 0 10px; display: flex; justify-content: center"
+                class="icon-button"
+                title="Click to maximise video"
+                on:click={() => {
+                    buttonClickAudio.play();
+                    pinPressed(id);
+                }}><div class="icon" style="margin-right: 0">
+                    <IoIosExpand />
+                </div></button>
+        {/if}
+        {#if videoStreams.length > 1 && rotateVideos}
+            <button
+                class="icon-button"
                 title="Switch between screen share and camera"
                 on:click={() => {
                     buttonClickAudio.play();
-                    videoStreams = [...videoStreams.slice(1), ...videoStreams.slice(0, 1)];
+                    rotateVideos();
                 }}><div class="icon" style="margin-right: 0">
                     <IoMdSwap />
                 </div></button>
-            <div
-                style="color: white; height: 20px; width: 20px; transform: scaleY({Math.min(volume / 0.3, 1) + 0.1})">
-                <MdGraphicEq />
-            </div>
         {/if}
+        <div
+            style="color: white; margin-left: 3px; align-self: center; height: 20px; width: 20px; transform: scaleY({Math.min(volume / 0.3, 1) + 0.1})">
+            <MdGraphicEq />
+        </div>
     </div>
 </div>

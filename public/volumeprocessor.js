@@ -7,17 +7,24 @@ class VolumeProcessor extends AudioWorkletProcessor {
 		this.minimum_value = 0.01;
 		this.updateIntervalMS = 50;
 		this.nextUpdateFrame = this.updateIntervalMS;
+		this.continue = true;
+		this.port.onmessage = (event) => {
+			if (event.data.msg)
+				this.continue = false;
+		}
 	}
 
 	process (inputs, outputs, parameters) {
 		// take the first output
 		if (inputs.length == 0) {
-			return true;
+			console.log("No inputs");
+			return this.continue;
 		}
 		const input = inputs[0];
 		// fill each channel with random values multiplied by gain
 		if (input.length == 0) {
-			return true;
+			console.log("No input channels");
+			return this.continue;
 		}
 		const samples = input[0];
 
@@ -35,7 +42,7 @@ class VolumeProcessor extends AudioWorkletProcessor {
 			this.nextUpdateFrame += this.intervalInFrames;
 			this.port.postMessage({ volume: this.volume });
 		}
-		return true;
+		return this.continue;
 	}
 
 	get intervalInFrames () {
