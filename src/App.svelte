@@ -445,9 +445,22 @@
 </script>
 
 <style>
+	.noselect {
+		-webkit-touch-callout: none; /* iOS Safari */
+		-webkit-user-select: none; /* Safari */
+		-khtml-user-select: none; /* Konqueror HTML */
+		-moz-user-select: none; /* Old versions of Firefox */
+		-ms-user-select: none; /* Internet Explorer/Edge */
+		user-select: none; /* Non-prefixed version, currently
+                                  supported by Chrome, Edge, Opera and Firefox */
+	}
 	div {
 		margin: 0;
 		padding: 0;
+	}
+	.full {
+		width: 100%;
+		height: 100%;
 	}
 	.video-outer > img {
 		width: 66%;
@@ -525,7 +538,8 @@
 {#if joinPromise == null}
 	<!-- Application has not been initialized, show prompt to user -->
 	<div
-		style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; flex-direction: column;">
+		class="full"
+		style="display: flex; align-items: center; justify-content: center; flex-direction: column;">
 		<div style="color: black; width: 100px">
 			<IoIosVideocam />
 		</div>
@@ -538,7 +552,8 @@
 	{#await joinPromise}
 		<!-- Wait for room to be created -->
 		<div
-			style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; flex-direction: column;">
+			class="full"
+			style="display: flex; align-items: center; justify-content: center; flex-direction: column;">
 			<div style="margin-top: 50px; margin-bottom: 20px">
 				<DoubleBounce size="60" />
 			</div>
@@ -564,12 +579,14 @@
 
 			{#if layout == 'main'}
 				<div
-					style="width: 100%; height: 100%; position: absolute; top: 0; display: flex; flex-direction: row">
+					class="full"
+					style="position: absolute; top: 0; display: flex; flex-direction: row">
 					<div class="mainVideo">
 						<!-- Main video pane -->
 						<div class="container" style="width: 100%; ">
 							<div class="video-outer">
 								<img
+									class="noselect"
 									src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7"
 									alt="backing" />
 								<div class="video-contents">
@@ -625,23 +642,26 @@
 							volume={volumes[localStream.id]} />
 					</div>
 				</div>
+				<!-- End layout === 'main' -->
 			{:else if layout === 'panel'}
 				<div
-					style="width: 100%; height: 100%; position: absolute; top: 0; display: flex; align-content: flex-start; flex-direction: row; flex-wrap: wrap; overflow: auto;">
-					{#each [...Array(5).keys()] as e (e)}
-						<div
-							style="width: {decideWidth(streams.length + 5, screenWidth)}%;">
-							<VideoPane
-								{buttonClickAudio}
-								{muted}
-								mainId={mainStreamId}
-								mainPinned={mainStreamPinned}
-								id={localStream.id}
-								videoStreams={[localStream.screenStream, localStream.videoStream]}
-								audioStreams={[]}
-								volume={volumes[localStream.id]} />
-						</div>
-					{/each}
+					class="full"
+					style="
+						position: absolute; top: 0; display: flex;
+						align-content: flex-start; flex-direction: row;
+						flex-wrap: wrap; overflow: auto;">
+					<div
+						style="width: {decideWidth(streams.length + 1, screenWidth)}%;">
+						<VideoPane
+							{buttonClickAudio}
+							{muted}
+							mainId={mainStreamId}
+							mainPinned={mainStreamPinned}
+							id={localStream.id}
+							videoStreams={[localStream.screenStream, localStream.videoStream]}
+							audioStreams={[]}
+							volume={volumes[localStream.id]} />
+					</div>
 					{#each streams as stream (stream.id)}
 						<div
 							style="width: {decideWidth(streams.length + 1, screenWidth)}%;">
@@ -665,6 +685,7 @@
 						</div>
 					{/each}
 				</div>
+				<!-- End layout === "panel" -->
 			{:else}Invalid layout{/if}
 		</div>
 	{:catch error}

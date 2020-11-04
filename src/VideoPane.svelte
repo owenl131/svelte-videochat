@@ -47,6 +47,15 @@
 </script>
 
 <style>
+    .noselect {
+        -webkit-touch-callout: none; /* iOS Safari */
+        -webkit-user-select: none; /* Safari */
+        -khtml-user-select: none; /* Konqueror HTML */
+        -moz-user-select: none; /* Old versions of Firefox */
+        -ms-user-select: none; /* Internet Explorer/Edge */
+        user-select: none; /* Non-prefixed version, currently
+                                  supported by Chrome, Edge, Opera and Firefox */
+    }
     * {
         margin: 0;
     }
@@ -98,6 +107,7 @@
 <div class="remote" style="position: relative;">
     <div class="video-outer">
         <img
+            class="noselect"
             src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7"
             alt="backing" />
         <div class="video-contents">
@@ -107,6 +117,7 @@
                 <track kind="captions" /></video>
             <div style="height: 100%; position: absolute; top: 0; left: 0">
                 <img
+                    class="noselect"
                     src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7"
                     alt="backing"
                     style="height: 100%" />
@@ -114,7 +125,9 @@
         </div>
     </div>
     <div
-        style="position: absolute; bottom: 0; right: 0; background-color: rgba(0, 0, 0, 0.4); display: flex; justify-content: center;">
+        style="position: absolute; bottom: 0; right: 0;
+            background-color: rgba(0, 0, 0, 0.4);
+            display: flex; justify-content: center;">
         <span style="color: white; margin-left: 3px; align-self: center">{id}
         </span>
         {#if muted}
@@ -146,7 +159,8 @@
                 </div></button>
         {/if}
         <div
-            style="color: white; margin-left: 3px; align-self: center; height: 20px; width: 20px; transform: scaleY({Math.min(volume / 0.3, 1) + 0.1})">
+            style="color: white; margin-left: 3px; align-self: center;
+                height: 20px; width: 20px; transform: scaleY({Math.min(volume / 0.3, 1) + 0.1})">
             <MdGraphicEq />
         </div>
     </div>
