@@ -14,6 +14,10 @@
     export let mainId = null;
     export let id = "";
     export let volume = 0;
+    export let framed = false;
+
+    const unitSquare =
+        "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7";
 
     function srcObject(node, streams) {
         if (streams != null) {
@@ -60,7 +64,7 @@
         margin: 0;
     }
     .video-outer > img {
-        width: 66%;
+        width: calc(3 / 4 * 100%);
     }
     .video-outer {
         position: relative;
@@ -80,6 +84,8 @@
     video {
         max-width: 100%;
         max-height: 100%;
+        width: 100%;
+        height: 100%;
         position: absolute;
         top: 50%;
         left: 50%;
@@ -102,14 +108,23 @@
         margin-bottom: auto;
         margin-right: 10px;
     }
+    .frame {
+        position: absolute;
+        height: calc(100% - 6px);
+        width: calc(100% - 6px);
+        border-width: 3px;
+        border-style: inset;
+        border-color: yellow;
+        z-index: 20;
+    }
 </style>
 
 <div class="remote" style="position: relative;">
+    {#if framed}
+        <div class="frame" />
+    {/if}
     <div class="video-outer">
-        <img
-            class="noselect"
-            src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7"
-            alt="backing" />
+        <img class="noselect" src={unitSquare} alt="backing" />
         <div class="video-contents">
             <video
                 use:srcObject={chooseWhich(videoStreams, audioStreams, mainId === id)}
@@ -118,14 +133,14 @@
             <div style="height: 100%; position: absolute; top: 0; left: 0">
                 <img
                     class="noselect"
-                    src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7"
+                    src={unitSquare}
                     alt="backing"
                     style="height: 100%" />
             </div>
         </div>
     </div>
     <div
-        style="position: absolute; bottom: 0; right: 0;
+        style="position: absolute; bottom: 3px; right: 3px;
             background-color: rgba(0, 0, 0, 0.4);
             display: flex; justify-content: center;">
         <span style="color: white; margin-left: 3px; align-self: center">{id}

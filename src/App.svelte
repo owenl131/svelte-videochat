@@ -14,7 +14,7 @@
 	export let debugMode = true;
 
 	let token = debugMode
-		? "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiIsImN0eSI6InR3aWxpby1mcGE7dj0xIn0.eyJqdGkiOiJTS2JiN2YzZGMzZTFkYjkwY2VhNzEyMWNjOTNmMDM1NGRkLTE2MDQ0OTU2NTQiLCJpc3MiOiJTS2JiN2YzZGMzZTFkYjkwY2VhNzEyMWNjOTNmMDM1NGRkIiwic3ViIjoiQUMxNTIwMDRlZDIxNTMwN2IzM2NkODM1ODNjMWJhZTE4MSIsImV4cCI6MTYwNDQ5OTI1NCwiZ3JhbnRzIjp7ImlkZW50aXR5IjoiYmFycnkiLCJ2aWRlbyI6eyJyb29tIjoiY29vbCByb29tIn19fQ.RiLQC3RyM1WxB6VNbXmTLtWogrpdFG61Sk9xDptSDks"
+		? "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiIsImN0eSI6InR3aWxpby1mcGE7dj0xIn0.eyJqdGkiOiJTS2JiN2YzZGMzZTFkYjkwY2VhNzEyMWNjOTNmMDM1NGRkLTE2MDUxMDkwMTciLCJpc3MiOiJTS2JiN2YzZGMzZTFkYjkwY2VhNzEyMWNjOTNmMDM1NGRkIiwic3ViIjoiQUMxNTIwMDRlZDIxNTMwN2IzM2NkODM1ODNjMWJhZTE4MSIsImV4cCI6MTYwNTExMjYxNywiZ3JhbnRzIjp7ImlkZW50aXR5IjoiYmFycnkiLCJ2aWRlbyI6eyJyb29tIjoiY29vbCByb29tIn19fQ._gewpprFt1er_NWq_cV4E1pFzGwlj3RaoPjYdpJtvP4"
 		: null;
 	let audioDirectory = debugMode
 		? "./"
@@ -26,9 +26,12 @@
 
 	let joinPromise = null;
 	let room = null;
+	// for "Speaker" view
 	let mainStream = null;
 	let mainStreamId = null;
 	let mainStreamPinned = false;
+	// for "Panel" view
+	let mainSpeaker = null;
 
 	let layout = "main"; // or "panel"
 
@@ -71,7 +74,8 @@
 		volumes = {};
 	}
 
-	setInterval(decideMainStream, 1000);
+	setInterval(decideMainStream, 2000);
+	setInterval(decideMainSpeaker, 100);
 
 	let audioContext = null;
 
@@ -389,6 +393,21 @@
 		}
 	}
 
+	function decideMainSpeaker() {
+		let maxVolume = 0.05;
+		let maxId = null;
+		for (const id in volumes) {
+			if (volumes.hasOwnProperty(id)) {
+				const v = volumes[id];
+				if (v > maxVolume) {
+					maxId = id;
+					maxVolume = v;
+				}
+			}
+		}
+		mainSpeaker = maxId;
+	}
+
 	function srcObject(node, streams) {
 		if (streams != null) {
 			streams = Array.isArray(streams)
@@ -553,7 +572,7 @@
 		<!-- Wait for room to be created -->
 		<div
 			class="full"
-			style="display: flex; align-items: center; justify-content: center; flex-direction: column;">
+			style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; flex-direction: column;">
 			<div style="margin-top: 50px; margin-bottom: 20px">
 				<DoubleBounce size="60" />
 			</div>
@@ -619,7 +638,6 @@
 								audioStreams={stream.audioStreams}
 								muted={remoteMuted[stream.id] || false}
 								mainId={mainStreamId}
-								mainPinned={mainStreamPinned}
 								id={stream.id}
 								pinPressed={pinStream}
 								rotateVideos={() => {
@@ -635,7 +653,6 @@
 							{buttonClickAudio}
 							{muted}
 							mainId={mainStreamId}
-							mainPinned={mainStreamPinned}
 							id={localStream.id}
 							videoStreams={[localStream.screenStream, localStream.videoStream]}
 							audioStreams={[]}
@@ -656,10 +673,10 @@
 							{buttonClickAudio}
 							{muted}
 							mainId={mainStreamId}
-							mainPinned={mainStreamPinned}
 							id={localStream.id}
 							videoStreams={[localStream.screenStream, localStream.videoStream]}
 							audioStreams={[]}
+							framed={mainSpeaker === localStream.id}
 							volume={volumes[localStream.id]} />
 					</div>
 					{#each streams as stream (stream.id)}
@@ -671,9 +688,7 @@
 								audioStreams={stream.audioStreams}
 								muted={remoteMuted[stream.id] || false}
 								mainId={mainStreamId}
-								mainPinned={mainStreamPinned}
 								id={stream.id}
-								pinPressed={pinStream}
 								rotateVideos={() => {
 									stream.videoStreams = [...stream.videoStreams.slice(1), ...stream.videoStreams.slice(0, 1)];
 									streams = streams;
@@ -681,6 +696,7 @@
 										mainStream = stream.videoStreams[0].clone();
 									}
 								}}
+								framed={mainSpeaker === stream.id}
 								volume={volumes[stream.id] || 0} />
 						</div>
 					{/each}
