@@ -6,6 +6,8 @@
 	import CommandPane from "./CommandPane.svelte";
 	import VideoPane from "./VideoPane.svelte";
 	import { fade } from "svelte/transition";
+	import { SvelteToast } from "@zerodevx/svelte-toast";
+	import { toast } from "@zerodevx/svelte-toast";
 
 	/**
 	 * TODO:
@@ -15,7 +17,7 @@
 	export let debugMode = false;
 
 	let token = debugMode
-		? "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiIsImN0eSI6InR3aWxpby1mcGE7dj0xIn0.eyJqdGkiOiJTS2JiN2YzZGMzZTFkYjkwY2VhNzEyMWNjOTNmMDM1NGRkLTE2MDUxNDU1MzEiLCJpc3MiOiJTS2JiN2YzZGMzZTFkYjkwY2VhNzEyMWNjOTNmMDM1NGRkIiwic3ViIjoiQUMxNTIwMDRlZDIxNTMwN2IzM2NkODM1ODNjMWJhZTE4MSIsImV4cCI6MTYwNTE0OTEzMSwiZ3JhbnRzIjp7ImlkZW50aXR5IjoiYmFycnkiLCJ2aWRlbyI6eyJyb29tIjoiY29vbCByb29tIn19fQ.YeFG7HVQNGR9gSb-pfzXpDCcYhc-0atka3Q_xK8pLOI"
+		? "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiIsImN0eSI6InR3aWxpby1mcGE7dj0xIn0.eyJqdGkiOiJTS2JiN2YzZGMzZTFkYjkwY2VhNzEyMWNjOTNmMDM1NGRkLTE2MDUyNTY5MjkiLCJpc3MiOiJTS2JiN2YzZGMzZTFkYjkwY2VhNzEyMWNjOTNmMDM1NGRkIiwic3ViIjoiQUMxNTIwMDRlZDIxNTMwN2IzM2NkODM1ODNjMWJhZTE4MSIsImV4cCI6MTYwNTI2MDUyOSwiZ3JhbnRzIjp7ImlkZW50aXR5IjoiYmFycnkiLCJ2aWRlbyI6eyJyb29tIjoiY29vbCByb29tIn19fQ.enu19Rbw9pn_0JvIY89yBndUwSb6okzyizY6QUZHfko"
 		: null;
 	let audioDirectory = debugMode
 		? "./"
@@ -34,7 +36,7 @@
 	// for "Panel" view
 	let mainSpeaker = null;
 
-	let layout = "main"; // or "panel"
+	let layout = "panel"; // or "main"
 
 	let joinCallAudio = new Audio(audioDirectory + "startcall.mp3");
 	let endCallAudio = new Audio(audioDirectory + "endcall.mp3");
@@ -54,6 +56,12 @@
 	let videoHidden = false;
 	let volumes = {};
 	let remoteMuted = {};
+
+	let options = {
+		theme: {
+			"--toastHeight": "6rem",
+		},
+	};
 
 	function reset() {
 		joinPromise = null;
@@ -245,19 +253,35 @@
 
 	function toggleMute() {
 		buttonClickAudio.play();
+		muted = !muted;
+		if (muted) {
+			toast.push("Audio muted", options);
+		} else {
+			toast.push("Audio unmuted", options);
+		}
 		room.localParticipant.audioTracks.forEach((track) => {
-			muted = !muted;
-			if (muted) track.track.disable();
-			else track.track.enable();
+			if (muted) {
+				track.track.disable();
+			} else {
+				track.track.enable();
+			}
 		});
 	}
 
 	function toggleVideo() {
 		buttonClickAudio.play();
+		videoHidden = !videoHidden;
+		if (videoHidden) {
+			toast.push("Video hidden");
+		} else {
+			toast.push("Video shown");
+		}
 		room.localParticipant.videoTracks.forEach((track) => {
-			videoHidden = !videoHidden;
-			if (videoHidden) track.track.disable();
-			else track.track.enable();
+			if (videoHidden) {
+				track.track.disable();
+			} else {
+				track.track.enable();
+			}
 		});
 	}
 
@@ -271,22 +295,24 @@
 						localStream.screenStream
 					)
 				);
+				toast.push("Screenshare started");
 			});
 		} else {
 			room.localParticipant.unpublishTrack(localStream.screenStream);
 			localStream.screenStream.stop();
 			localStream.screenStream = null;
+			toast.push("Screenshare stopped");
 		}
 	}
 
 	function endCall() {
-		if (room == null) {
-			initializeRoom();
-		} else {
+		if (room != null) {
 			room.disconnect();
 			endCallAudio.play();
 			reset();
 		}
+		toast.push("Call ended");
+		window.history.back();
 	}
 
 	function updateVideoStream(participant) {
@@ -336,6 +362,7 @@
 
 	function addParticipant(participant) {
 		console.log("addParticipant", participant);
+		toast.push(participant.identity + " joined the call.");
 		var data = {
 			id: participant.identity,
 			participant: participant,
@@ -350,6 +377,7 @@
 	}
 
 	function removeParticipant(participant) {
+		toast.push(participant.identity + " left the call.");
 		streams = streams.filter((e) => e.id != participant.identity);
 	}
 
@@ -434,6 +462,13 @@
 	}
 
 	function pinStream(id) {
+		buttonClickAudio.play();
+		if (mainStreamPinned && mainStreamId == id) {
+			mainStreamId = null;
+			mainStream = null;
+			mainStreamPinned = false;
+			return;
+		}
 		if (mainStreamId == id) {
 			mainStreamPinned = true;
 			return;
@@ -485,7 +520,7 @@
 		height: 100%;
 	}
 	.video-outer > img {
-		width: 66%;
+		width: 75%;
 	}
 	.video-outer {
 		position: relative;
@@ -528,27 +563,15 @@
 		margin: 3px 2px;
 		line-height: initial;
 	}
-</style>
-
-{#if streams.length <= 4}
-	<style>
-		.mainVideo {
-			flex: 4;
-		}
-		.remote {
-			flex-basis: 100%;
-		}
-	</style>
-{:else}
-	<style>
+	.mainVideo {
+		flex: 3;
+	}
+	@media screen and (max-width: 640px) {
 		.mainVideo {
 			flex: 2;
 		}
-		.remote {
-			flex-basis: 40%;
-		}
-	</style>
-{/if}
+	}
+</style>
 
 <svelte:head>
 	{#if debugMode}
@@ -557,6 +580,8 @@
 		</script>
 	{/if}
 </svelte:head>
+
+<SvelteToast {options} />
 
 {#if joinPromise == null}
 	<!-- Application has not been initialized, show prompt to user -->
@@ -593,7 +618,10 @@
 			{:else if audioContext.state === 'suspended'}
 				<div
 					style="width: 100%; height: 100%; position: absolute; background: #00000044; z-index: 100; display: flex; justify-content: center; align-items: center">
-					<button on:click={() => audioContext.resume()}>Join Call</button>
+					<button
+						on:click={() => {
+							audioContext.resume();
+						}}>Join Call</button>
 				</div>
 			{:else}
 				<!-- Control panel: mute, show/hide video, screenshare, endcall, change layout -->
@@ -626,16 +654,6 @@
 									src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7"
 									alt="backing" />
 								<div class="video-contents">
-									{#if mainStreamPinned}
-										<button
-											style="position: absolute; bottom: 10px; right: 10px; z-index: 10; line-height: initial"
-											on:click={() => {
-												mainStreamId = null;
-												mainStream = null;
-												mainStreamPinned = false;
-												buttonClickAudio.play();
-											}}>Unpin</button>
-									{/if}
 									<video
 										use:srcObject={[mainStream]}
 										autoplay>
@@ -657,6 +675,7 @@
 								mainId={mainStreamId}
 								id={stream.id}
 								pinPressed={pinStream}
+								isPinned={mainStreamPinned && mainStreamId == stream.id}
 								rotateVideos={() => {
 									stream.videoStreams = [...stream.videoStreams.slice(1), ...stream.videoStreams.slice(0, 1)];
 									streams = streams;

@@ -46,13 +46,27 @@
         flex-direction: row;
         align-content: center;
         justify-content: center;
-        margin: 0 5px;
+        margin: 0 4px;
         line-height: initial;
         padding: 0;
         border-radius: 50%;
         width: 64px;
         height: 64px;
         box-shadow: 2px 2px 10px 3px black;
+    }
+    @media screen and (max-width: 640px) {
+        .icon-button {
+            margin: 0 2px;
+            width: 48px;
+            height: 48px;
+        }
+        .icon {
+            width: 24px;
+            height: 24px;
+        }
+        .commandContainer {
+            bottom: 20px;
+        }
     }
 </style>
 

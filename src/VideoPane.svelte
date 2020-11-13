@@ -4,10 +4,12 @@
     import MdGraphicEq from "svelte-icons/md/MdGraphicEq.svelte";
     import IoIosVolumeOff from "svelte-icons/io/IoIosVolumeOff.svelte";
     import { fade } from "svelte/transition";
+    import GoPin from "svelte-icons/go/GoPin.svelte";
 
     export let buttonClickAudio = undefined;
     export let pinPressed = null;
     export let rotateVideos = null;
+    export let isPinned = false;
 
     export let videoStreams = [];
     export let audioStreams = [];
@@ -95,10 +97,15 @@
     }
     .icon-button {
         display: flex;
+        justify-content: center;
         align-content: center;
         margin: 3px 2px;
         line-height: initial;
-        padding: 2px 10px;
+        border-radius: 6px;
+        width: 24px;
+        height: 24px;
+        padding: 0;
+        background-color: #777c;
     }
     .icon {
         display: inline-block;
@@ -107,20 +114,19 @@
         height: 16px;
         margin-top: auto;
         margin-bottom: auto;
-        margin-right: 10px;
     }
     .frame {
         position: absolute;
         height: 100%;
         width: 100%;
-        border-width: 3px;
+        border-width: 5px;
         border-style: inset;
-        border-color: yellow;
+        border-color: lightgreen;
         z-index: 20;
     }
 </style>
 
-<div class="remote" style="position: relative;">
+<div class="remote" style="position: relative; width: 100%;">
     {#if framed}
         <div class="frame" transition:fade />
     {/if}
@@ -140,28 +146,31 @@
             </div>
         </div>
     </div>
-    <div
-        style="position: absolute; bottom: 3px; right: 3px;
-            background-color: rgba(0, 0, 0, 0.4);
-            display: flex; justify-content: center;">
-        <span style="color: white; margin-left: 3px; align-self: center">{id}
-        </span>
-        {#if muted}
-            <div
-                style="height: 20px; width: 20px; margin: 3px; display: inline-block; color: white; align-self: center">
-                <IoIosVolumeOff />
-            </div>
-        {/if}
+    <div style="position: absolute; top: 1px; right: 1px;">
         {#if pinPressed}
-            <button
-                class="icon-button"
-                title="Click to maximise video"
-                on:click={() => {
-                    buttonClickAudio.play();
-                    pinPressed(id);
-                }}><div class="icon" style="margin-right: 0">
-                    <IoIosExpand />
-                </div></button>
+            {#if isPinned}
+                <button
+                    style="background-color: blue"
+                    class="icon-button"
+                    title="Unpin video"
+                    on:click={() => {
+                        buttonClickAudio.play();
+                        pinPressed(id);
+                    }}><div class="icon" style="margin-right: 0">
+                        <GoPin />
+                    </div></button>
+            {:else}
+                <button
+                    style="background-color: #777c;"
+                    class="icon-button"
+                    title="Click to maximise video"
+                    on:click={() => {
+                        buttonClickAudio.play();
+                        pinPressed(id);
+                    }}><div class="icon" style="margin-right: 0">
+                        <GoPin />
+                    </div></button>
+            {/if}
         {/if}
         {#if videoStreams.length > 1 && rotateVideos}
             <button
@@ -174,6 +183,20 @@
                     <IoMdSwap />
                 </div></button>
         {/if}
+    </div>
+    <div
+        style="position: absolute; bottom: 3px; right: 3px;
+            background-color: rgba(0, 0, 0, 0.4);
+            display: flex; justify-content: center;">
+        <span style="color: white; margin-left: 3px; align-self: center">{id}
+        </span>
+        {#if muted}
+            <div
+                style="height: 20px; width: 20px; margin: 3px; display: inline-block; color: white; align-self: center">
+                <IoIosVolumeOff />
+            </div>
+        {/if}
+
         <div
             style="color: white; margin-left: 3px; align-self: center;
                 height: 20px; width: 20px; transform: scaleY({Math.min(volume / 0.3, 1) + 0.1})">
