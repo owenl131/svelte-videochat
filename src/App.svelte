@@ -5,16 +5,17 @@
 	import IoIosVideocam from "svelte-icons/io/IoIosVideocam.svelte";
 	import CommandPane from "./CommandPane.svelte";
 	import VideoPane from "./VideoPane.svelte";
+	import { fade } from "svelte/transition";
 
 	/**
 	 * TODO:
 	 * make sure all resources are closed when disconnecting - volumenode and screensharing
 	 * display symbol on muted
 	 */
-	export let debugMode = true;
+	export let debugMode = false;
 
 	let token = debugMode
-		? "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiIsImN0eSI6InR3aWxpby1mcGE7dj0xIn0.eyJqdGkiOiJTS2JiN2YzZGMzZTFkYjkwY2VhNzEyMWNjOTNmMDM1NGRkLTE2MDUxMDkwMTciLCJpc3MiOiJTS2JiN2YzZGMzZTFkYjkwY2VhNzEyMWNjOTNmMDM1NGRkIiwic3ViIjoiQUMxNTIwMDRlZDIxNTMwN2IzM2NkODM1ODNjMWJhZTE4MSIsImV4cCI6MTYwNTExMjYxNywiZ3JhbnRzIjp7ImlkZW50aXR5IjoiYmFycnkiLCJ2aWRlbyI6eyJyb29tIjoiY29vbCByb29tIn19fQ._gewpprFt1er_NWq_cV4E1pFzGwlj3RaoPjYdpJtvP4"
+		? "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiIsImN0eSI6InR3aWxpby1mcGE7dj0xIn0.eyJqdGkiOiJTS2JiN2YzZGMzZTFkYjkwY2VhNzEyMWNjOTNmMDM1NGRkLTE2MDUxNDU1MzEiLCJpc3MiOiJTS2JiN2YzZGMzZTFkYjkwY2VhNzEyMWNjOTNmMDM1NGRkIiwic3ViIjoiQUMxNTIwMDRlZDIxNTMwN2IzM2NkODM1ODNjMWJhZTE4MSIsImV4cCI6MTYwNTE0OTEzMSwiZ3JhbnRzIjp7ImlkZW50aXR5IjoiYmFycnkiLCJ2aWRlbyI6eyJyb29tIjoiY29vbCByb29tIn19fQ.YeFG7HVQNGR9gSb-pfzXpDCcYhc-0atka3Q_xK8pLOI"
 		: null;
 	let audioDirectory = debugMode
 		? "./"
@@ -91,9 +92,11 @@
 			token = document.getElementById("video-user-token").value;
 		if (roomname == null)
 			roomname = document.getElementById("video-room").value;
+		initialize();
 	});
 
 	function switchViewLayout() {
+		buttonClickAudio.play();
 		if (layout === "main") {
 			layout = "panel";
 			mainStreamId = null;
@@ -489,6 +492,7 @@
 		display: inline-block; /* shrink wrap */
 		width: 100%;
 		height: auto;
+		max-height: 100%;
 	}
 	.video-contents {
 		/* match size of .container, without influencing it */
@@ -557,8 +561,7 @@
 {#if joinPromise == null}
 	<!-- Application has not been initialized, show prompt to user -->
 	<div
-		class="full"
-		style="display: flex; align-items: center; justify-content: center; flex-direction: column;">
+		style="width: 100%; height: 80vh; display: flex; align-items: center; justify-content: center; flex-direction: column;">
 		<div style="color: black; width: 100px">
 			<IoIosVideocam />
 		</div>
@@ -571,8 +574,7 @@
 	{#await joinPromise}
 		<!-- Wait for room to be created -->
 		<div
-			class="full"
-			style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; flex-direction: column;">
+			style="width: 100%; height: 80vh; display: flex; align-items: center; justify-content: center; flex-direction: column;">
 			<div style="margin-top: 50px; margin-bottom: 20px">
 				<DoubleBounce size="60" />
 			</div>
@@ -583,26 +585,41 @@
 		<div
 			bind:clientWidth={screenWidth}
 			style="width: 100%; height: 80vh; position: relative; background: black">
-			<!-- Control panel: mute, show/hide video, screenshare, endcall, change layout -->
-			<CommandPane
-				isMuted={muted}
-				isVideoHidden={videoHidden}
-				isScreenShared={localStream.screenStream != null}
-				{layout}
-				toggleView={switchViewLayout}
-				{toggleMute}
-				{toggleVideo}
-				toggleScreenShare={shareScreen}
-				{endCall} />
-			<!-- End control panel -->
-
+			{#if audioContext == null}
+				<div
+					style="width: 100%; height: 100%; position: absolute; background: black; z-index: 100; opacity: 0.5">
+					AudioContext could not be started
+				</div>
+			{:else if audioContext.state === 'suspended'}
+				<div
+					style="width: 100%; height: 100%; position: absolute; background: #00000044; z-index: 100; display: flex; justify-content: center; align-items: center">
+					<button on:click={() => audioContext.resume()}>Join Call</button>
+				</div>
+			{:else}
+				<!-- Control panel: mute, show/hide video, screenshare, endcall, change layout -->
+				<div transition:fade>
+					<CommandPane
+						isMuted={muted}
+						isVideoHidden={videoHidden}
+						isScreenShared={localStream.screenStream != null}
+						{layout}
+						toggleView={switchViewLayout}
+						{toggleMute}
+						{toggleVideo}
+						toggleScreenShare={shareScreen}
+						{endCall} />
+				</div>
+				<!-- End control panel -->
+			{/if}
 			{#if layout == 'main'}
 				<div
 					class="full"
 					style="position: absolute; top: 0; display: flex; flex-direction: row">
 					<div class="mainVideo">
 						<!-- Main video pane -->
-						<div class="container" style="width: 100%; ">
+						<div
+							class="container"
+							style="width: 100%; height: 100%;">
 							<div class="video-outer">
 								<img
 									class="noselect"

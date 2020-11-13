@@ -3,6 +3,7 @@
     import IoMdSwap from "svelte-icons/io/IoMdSwap.svelte";
     import MdGraphicEq from "svelte-icons/md/MdGraphicEq.svelte";
     import IoIosVolumeOff from "svelte-icons/io/IoIosVolumeOff.svelte";
+    import { fade } from "svelte/transition";
 
     export let buttonClickAudio = undefined;
     export let pinPressed = null;
@@ -110,8 +111,8 @@
     }
     .frame {
         position: absolute;
-        height: calc(100% - 6px);
-        width: calc(100% - 6px);
+        height: 100%;
+        width: 100%;
         border-width: 3px;
         border-style: inset;
         border-color: yellow;
@@ -121,7 +122,7 @@
 
 <div class="remote" style="position: relative;">
     {#if framed}
-        <div class="frame" />
+        <div class="frame" transition:fade />
     {/if}
     <div class="video-outer">
         <img class="noselect" src={unitSquare} alt="backing" />

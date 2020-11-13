@@ -26,7 +26,7 @@
 <style>
     .commandContainer {
         position: fixed;
-        bottom: 100px;
+        bottom: 50px;
         left: 50vw;
         transform: translateX(-50%);
         display: flex;
@@ -48,6 +48,7 @@
         justify-content: center;
         margin: 0 5px;
         line-height: initial;
+        padding: 0;
         border-radius: 50%;
         width: 64px;
         height: 64px;
