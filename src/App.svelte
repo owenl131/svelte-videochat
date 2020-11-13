@@ -8,6 +8,7 @@
 	import { fade } from "svelte/transition";
 	import { SvelteToast } from "@zerodevx/svelte-toast";
 	import { toast } from "@zerodevx/svelte-toast";
+	import { missing_component } from "svelte/internal";
 
 	/**
 	 * TODO:
@@ -42,7 +43,7 @@
 	let endCallAudio = new Audio(audioDirectory + "endcall.mp3");
 	let buttonClickAudio = new Audio(audioDirectory + "click.mp3");
 
-	let screenWidth;
+	let screenWidth, screenHeight;
 
 	let localStream = {
 		id: null,
@@ -482,22 +483,42 @@
 		}
 	}
 
-	function decideWidth(number, width) {
-		if (width > 900) {
-			if (number <= 2) return 50;
-			if (number <= 6) return 33;
-			if (number <= 12) return 25;
-			return 20;
+	// function decideWidth(number, width, height) {
+	// 	let aspectRatio = width / height;
+	// 	let videoRatio = 4 / 3;
+	// 	if (number == 1) {
+	// 		return ((Math.min(aspectRatio, videoRatio) * height) / width) * 100;
+	// 	}
+	// 	if (number == 2) {
+	// 		if (aspectRatio < videoRatio) {
+	// 			// height 50%
+	// 			return ((videoRatio * height) / 2 / width) * 100;
+	// 		}
+	// 		return 50;
+	// 	}
+	// 	if (number <= 6) {
+	// 		return Math.min(50, ((videoRatio * height) / 2 / width) * 100);
+	// 	}
+	// 	return Math.min(33, ((videoRatio * height) / 3 / width) * 100);
+	// }
+	let videoRatio = 4 / 3;
+	function decideWidth(number, width, height) {
+		width -= 10;
+		height -= 10;
+		let aspectRatio = width / height;
+		if (number == 1) {
+			return Math.min(aspectRatio, videoRatio) * height - 5;
 		}
-		if (width <= 480) {
-			if (number <= 3) return 100;
-			if (number <= 12) return 50;
-			return 33;
+		if (number == 2) {
+			return Math.max(width / 2, videoRatio * (height / 2)) - 5;
 		}
-		if (number <= 1) return 100;
-		if (number <= 6) return 50;
-		if (number <= 12) return 33;
-		return 25;
+		if (number <= 4) {
+			return Math.max(width / 2, videoRatio * (height / 3)) - 3;
+		}
+		if (number <= 6) {
+			return Math.min(width / 2, (videoRatio * height) / 3) - 2;
+		}
+		return Math.min(width / 3, (videoRatio * height) / 3) - 1;
 	}
 </script>
 
@@ -609,6 +630,7 @@
 		<!-- Display room -->
 		<div
 			bind:clientWidth={screenWidth}
+			bind:clientHeight={screenHeight}
 			style="width: 100%; height: 80vh; position: relative; background: black">
 			{#if audioContext == null}
 				<div
@@ -621,6 +643,7 @@
 					<button
 						on:click={() => {
 							audioContext.resume();
+							audioContext = audioContext;
 						}}>Join Call</button>
 				</div>
 			{:else}
@@ -701,10 +724,11 @@
 					class="full"
 					style="
 						position: absolute; top: 0; display: flex;
-						align-content: flex-start; flex-direction: row;
+						align-content: center; justify-content: center; flex-direction: row;
 						flex-wrap: wrap; overflow: auto;">
 					<div
-						style="width: {decideWidth(streams.length + 1, screenWidth)}%;">
+						style="width: {decideWidth(streams.length + 1, screenWidth, screenHeight)}px;
+							height: {decideWidth(streams.length + 1, screenWidth, screenHeight) / videoRatio}px">
 						<VideoPane
 							{buttonClickAudio}
 							{muted}
@@ -717,7 +741,8 @@
 					</div>
 					{#each streams as stream (stream.id)}
 						<div
-							style="width: {decideWidth(streams.length + 1, screenWidth)}%;">
+							style="width: {decideWidth(streams.length + 1, screenWidth, screenHeight)}px;
+								height: {decideWidth(streams.length + 1, screenWidth, screenHeight) / videoRatio}px">
 							<VideoPane
 								{buttonClickAudio}
 								videoStreams={stream.videoStreams}
