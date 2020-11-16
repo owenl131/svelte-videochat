@@ -9,7 +9,7 @@
 	import { SvelteToast } from "@zerodevx/svelte-toast";
 	import { toast } from "@zerodevx/svelte-toast";
 
-	export let debugMode = true;
+	export let debugMode = false;
 
 	let token = debugMode
 		? "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiIsImN0eSI6InR3aWxpby1mcGE7dj0xIn0.eyJqdGkiOiJTS2JiN2YzZGMzZTFkYjkwY2VhNzEyMWNjOTNmMDM1NGRkLTE2MDU0OTQ2MTIiLCJpc3MiOiJTS2JiN2YzZGMzZTFkYjkwY2VhNzEyMWNjOTNmMDM1NGRkIiwic3ViIjoiQUMxNTIwMDRlZDIxNTMwN2IzM2NkODM1ODNjMWJhZTE4MSIsImV4cCI6MTYwNTQ5ODIxMiwiZ3JhbnRzIjp7ImlkZW50aXR5IjoiYmFycnkiLCJ2aWRlbyI6eyJyb29tIjoiY29vbCByb29tIn19fQ.UHKIrf2n3KD9Y1uzbZoPxhECOL0RC735rinm2ZiE-ao"
@@ -595,7 +595,9 @@
 				<div
 					style="width: 100%; height: 100%; position: absolute; background: #00000044; z-index: 100; display: flex; justify-content: center; align-items: center">
 					{#if startedAudio}
-						<button disabled><Circle size="24" /></button>
+						<button disabled><Circle
+								size="24"
+								color="white" /></button>
 					{:else}
 						<button
 							on:click={() => {
