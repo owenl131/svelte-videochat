@@ -1,6 +1,6 @@
 import App from './App.svelte';
 
-var debugMode = false;
+var debugMode = true;
 
 if (!debugMode) {
 	jQuery(document).ready(() => {

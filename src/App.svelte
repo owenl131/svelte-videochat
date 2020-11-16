@@ -1,24 +1,18 @@
 <script>
 	import { onDestroy, onMount } from "svelte";
-	import { DoubleBounce } from "svelte-loading-spinners";
-	import IoMdCall from "svelte-icons/io/IoMdCall.svelte";
-	import IoIosVideocam from "svelte-icons/io/IoIosVideocam.svelte";
+	import { DoubleBounce, Circle } from "svelte-loading-spinners";
+	// import IoMdCall from "svelte-icons/io/IoMdCall.svelte";
+	// import IoIosVideocam from "svelte-icons/io/IoIosVideocam.svelte";
 	import CommandPane from "./CommandPane.svelte";
 	import VideoPane from "./VideoPane.svelte";
 	import { fade } from "svelte/transition";
 	import { SvelteToast } from "@zerodevx/svelte-toast";
 	import { toast } from "@zerodevx/svelte-toast";
-	import { missing_component } from "svelte/internal";
 
-	/**
-	 * TODO:
-	 * make sure all resources are closed when disconnecting - volumenode and screensharing
-	 * display symbol on muted
-	 */
-	export let debugMode = false;
+	export let debugMode = true;
 
 	let token = debugMode
-		? "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiIsImN0eSI6InR3aWxpby1mcGE7dj0xIn0.eyJqdGkiOiJTS2JiN2YzZGMzZTFkYjkwY2VhNzEyMWNjOTNmMDM1NGRkLTE2MDUyNTY5MjkiLCJpc3MiOiJTS2JiN2YzZGMzZTFkYjkwY2VhNzEyMWNjOTNmMDM1NGRkIiwic3ViIjoiQUMxNTIwMDRlZDIxNTMwN2IzM2NkODM1ODNjMWJhZTE4MSIsImV4cCI6MTYwNTI2MDUyOSwiZ3JhbnRzIjp7ImlkZW50aXR5IjoiYmFycnkiLCJ2aWRlbyI6eyJyb29tIjoiY29vbCByb29tIn19fQ.enu19Rbw9pn_0JvIY89yBndUwSb6okzyizY6QUZHfko"
+		? "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiIsImN0eSI6InR3aWxpby1mcGE7dj0xIn0.eyJqdGkiOiJTS2JiN2YzZGMzZTFkYjkwY2VhNzEyMWNjOTNmMDM1NGRkLTE2MDU0OTQ2MTIiLCJpc3MiOiJTS2JiN2YzZGMzZTFkYjkwY2VhNzEyMWNjOTNmMDM1NGRkIiwic3ViIjoiQUMxNTIwMDRlZDIxNTMwN2IzM2NkODM1ODNjMWJhZTE4MSIsImV4cCI6MTYwNTQ5ODIxMiwiZ3JhbnRzIjp7ImlkZW50aXR5IjoiYmFycnkiLCJ2aWRlbyI6eyJyb29tIjoiY29vbCByb29tIn19fQ.UHKIrf2n3KD9Y1uzbZoPxhECOL0RC735rinm2ZiE-ao"
 		: null;
 	let audioDirectory = debugMode
 		? "./"
@@ -63,6 +57,8 @@
 			"--toastHeight": "6rem",
 		},
 	};
+	let videoRatio = 4 / 3;
+	let startedAudio = false;
 
 	function reset() {
 		joinPromise = null;
@@ -483,25 +479,6 @@
 		}
 	}
 
-	// function decideWidth(number, width, height) {
-	// 	let aspectRatio = width / height;
-	// 	let videoRatio = 4 / 3;
-	// 	if (number == 1) {
-	// 		return ((Math.min(aspectRatio, videoRatio) * height) / width) * 100;
-	// 	}
-	// 	if (number == 2) {
-	// 		if (aspectRatio < videoRatio) {
-	// 			// height 50%
-	// 			return ((videoRatio * height) / 2 / width) * 100;
-	// 		}
-	// 		return 50;
-	// 	}
-	// 	if (number <= 6) {
-	// 		return Math.min(50, ((videoRatio * height) / 2 / width) * 100);
-	// 	}
-	// 	return Math.min(33, ((videoRatio * height) / 3 / width) * 100);
-	// }
-	let videoRatio = 4 / 3;
 	function decideWidth(number, width, height) {
 		width -= 10;
 		height -= 10;
@@ -569,21 +546,6 @@
 		transform: translate(-50%, -50%);
 		-ms-transform: translate(-50%, -50%);
 	}
-	.icon {
-		display: inline-block;
-		color: white;
-		width: 24px;
-		height: 24px;
-		margin: 4px 0px;
-		align-self: center;
-	}
-	.icon-button {
-		display: flex;
-		flex-direction: row;
-		align-content: center;
-		margin: 3px 2px;
-		line-height: initial;
-	}
 	.mainVideo {
 		flex: 3;
 	}
@@ -607,15 +569,7 @@
 {#if joinPromise == null}
 	<!-- Application has not been initialized, show prompt to user -->
 	<div
-		style="width: 100%; height: 80vh; display: flex; align-items: center; justify-content: center; flex-direction: column;">
-		<div style="color: black; width: 100px">
-			<IoIosVideocam />
-		</div>
-		<button class="icon-button" on:click={initialize}><div class="icon">
-				<IoMdCall />
-			</div><span style="align-self: center; margin-left: 10px;">Start
-				Call</span></button>
-	</div>
+		style="width: 100%; height: 80vh; display: flex; align-items: center; justify-content: center; flex-direction: column;" />
 {:else}
 	{#await joinPromise}
 		<!-- Wait for room to be created -->
@@ -640,11 +594,16 @@
 			{:else if audioContext.state === 'suspended'}
 				<div
 					style="width: 100%; height: 100%; position: absolute; background: #00000044; z-index: 100; display: flex; justify-content: center; align-items: center">
-					<button
-						on:click={() => {
-							audioContext.resume();
-							audioContext = audioContext;
-						}}>Join Call</button>
+					{#if startedAudio}
+						<button disabled><Circle size="24" /></button>
+					{:else}
+						<button
+							on:click={() => {
+								startedAudio = true;
+								audioContext.resume();
+								audioContext = audioContext;
+							}}>Join Call</button>
+					{/if}
 				</div>
 			{:else}
 				<!-- Control panel: mute, show/hide video, screenshare, endcall, change layout -->
