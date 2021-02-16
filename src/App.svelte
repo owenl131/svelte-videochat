@@ -128,6 +128,7 @@
 	function initialize() {
 		if (audioContext == null) {
 			audioContext = new AudioContext();
+			audioContext.resume();
 		}
 		audioContext.audioWorklet
 			.addModule(volumeNodeSource)
@@ -499,6 +500,229 @@
 	}
 </script>
 
+<svelte:head>
+	{#if debugMode}
+		<script
+			src="https://media.twiliocdn.com/sdk/js/video/releases/2.7.2/twilio-video.min.js">
+		</script>
+	{/if}
+</svelte:head>
+
+<SvelteToast {options} />
+
+{#if joinPromise == null}
+	<!-- Application has not been initialized, show prompt to user -->
+	<div
+		style="width: 100%; height: 80vh; display: flex; align-items: center; justify-content: center; flex-direction: column;"
+	/>
+{:else}
+	{#await joinPromise}
+		<!-- Wait for room to be created -->
+		<div
+			style="width: 100%; height: 80vh; display: flex; align-items: center; justify-content: center; flex-direction: column;"
+		>
+			<div style="margin-top: 50px; margin-bottom: 20px">
+				<DoubleBounce size="60" />
+			</div>
+			<p>Connecting...</p>
+		</div>
+	{:then room}
+		<!-- Display room -->
+		<div
+			bind:clientWidth={screenWidth}
+			bind:clientHeight={screenHeight}
+			style="width: 100%; height: 80vh; position: relative; background: black"
+		>
+			{#if audioContext == null}
+				<div
+					style="width: 100%; height: 100%; position: absolute; background: black; z-index: 100; opacity: 0.5"
+				>
+					AudioContext could not be started
+				</div>
+			{:else if audioContext.state === "suspended"}
+				<div
+					style="width: 100%; height: 100%; position: absolute; background: #00000044; z-index: 100; display: flex; justify-content: center; align-items: center"
+				>
+					{#if startedAudio}
+						<button disabled
+							><Circle size="24" color="white" /></button
+						>
+					{:else}
+						<button
+							on:click={() => {
+								startedAudio = true;
+								audioContext.resume();
+								audioContext = audioContext;
+							}}>Join Call</button
+						>
+					{/if}
+				</div>
+			{:else}
+				<!-- Control panel: mute, show/hide video, screenshare, endcall, change layout -->
+				<div transition:fade>
+					<CommandPane
+						isMuted={muted}
+						isVideoHidden={videoHidden}
+						isScreenShared={localStream.screenStream != null}
+						{layout}
+						toggleView={switchViewLayout}
+						{toggleMute}
+						{toggleVideo}
+						toggleScreenShare={shareScreen}
+						{endCall}
+					/>
+				</div>
+				<!-- End control panel -->
+			{/if}
+			{#if layout == "main"}
+				<div
+					class="full"
+					style="position: absolute; top: 0; display: flex; flex-direction: row"
+				>
+					<div class="mainVideo">
+						<!-- Main video pane -->
+						<div
+							class="container"
+							style="width: 100%; height: 100%;"
+						>
+							<div class="video-outer">
+								<img
+									class="noselect"
+									src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7"
+									alt="backing"
+								/>
+								<div class="video-contents">
+									<video
+										use:srcObject={[mainStream]}
+										autoplay
+									>
+										<track kind="captions" />
+									</video>
+								</div>
+							</div>
+						</div>
+					</div>
+					<div
+						class="sub container"
+						style="flex: 1; display: flex; flex-wrap: wrap; align-content: flex-start; overflow: auto"
+					>
+						{#each streams as stream (stream.id)}
+							<VideoPane
+								{buttonClickAudio}
+								videoStreams={stream.videoStreams}
+								audioStreams={stream.audioStreams}
+								muted={remoteMuted[stream.id] || false}
+								mainId={mainStreamId}
+								id={stream.id}
+								pinPressed={pinStream}
+								isPinned={mainStreamPinned &&
+									mainStreamId == stream.id}
+								rotateVideos={() => {
+									stream.videoStreams = [
+										...stream.videoStreams.slice(1),
+										...stream.videoStreams.slice(0, 1),
+									];
+									streams = streams;
+									if (mainStreamId == stream.id) {
+										mainStream = stream.videoStreams[0].clone();
+									}
+								}}
+								volume={volumes[stream.id] || 0}
+							/>
+						{/each}
+						<VideoPane
+							{buttonClickAudio}
+							{muted}
+							mainId={mainStreamId}
+							id={localStream.id}
+							videoStreams={[
+								localStream.screenStream,
+								localStream.videoStream,
+							]}
+							audioStreams={[]}
+							volume={volumes[localStream.id]}
+						/>
+					</div>
+				</div>
+				<!-- End layout === 'main' -->
+			{:else if layout === "panel"}
+				<div
+					class="full"
+					style="
+						position: absolute; top: 0; display: flex;
+						align-content: center; justify-content: center; flex-direction: row;
+						flex-wrap: wrap; overflow: auto;"
+				>
+					<div
+						style="width: {decideWidth(
+							streams.length + 1,
+							screenWidth,
+							screenHeight
+						)}px;
+							height: {decideWidth(
+							streams.length + 1,
+							screenWidth,
+							screenHeight
+						) / videoRatio}px"
+					>
+						<VideoPane
+							{buttonClickAudio}
+							{muted}
+							mainId={mainStreamId}
+							id={localStream.id}
+							videoStreams={[
+								localStream.screenStream,
+								localStream.videoStream,
+							]}
+							audioStreams={[]}
+							framed={mainSpeaker === localStream.id}
+							volume={volumes[localStream.id]}
+						/>
+					</div>
+					{#each streams as stream (stream.id)}
+						<div
+							style="width: {decideWidth(
+								streams.length + 1,
+								screenWidth,
+								screenHeight
+							)}px;
+								height: {decideWidth(
+								streams.length + 1,
+								screenWidth,
+								screenHeight
+							) / videoRatio}px"
+						>
+							<VideoPane
+								{buttonClickAudio}
+								videoStreams={stream.videoStreams}
+								audioStreams={stream.audioStreams}
+								muted={remoteMuted[stream.id] || false}
+								mainId={mainStreamId}
+								id={stream.id}
+								rotateVideos={() => {
+									stream.videoStreams = [
+										...stream.videoStreams.slice(1),
+										...stream.videoStreams.slice(0, 1),
+									];
+									streams = streams;
+									if (mainStreamId == stream.id) {
+										mainStream = stream.videoStreams[0].clone();
+									}
+								}}
+								framed={mainSpeaker === stream.id}
+								volume={volumes[stream.id] || 0}
+							/>
+						</div>
+					{/each}
+				</div>
+				<!-- End layout === "panel" -->
+			{:else}Invalid layout{/if}
+		</div>
+	{:catch error}
+		<p>Failed to join room: {error.message}</p>
+	{/await}
+{/if}
+
 <style>
 	.noselect {
 		-webkit-touch-callout: none; /* iOS Safari */
@@ -555,178 +779,3 @@
 		}
 	}
 </style>
-
-<svelte:head>
-	{#if debugMode}
-		<script
-			src="https://media.twiliocdn.com/sdk/js/video/releases/2.7.2/twilio-video.min.js">
-		</script>
-	{/if}
-</svelte:head>
-
-<SvelteToast {options} />
-
-{#if joinPromise == null}
-	<!-- Application has not been initialized, show prompt to user -->
-	<div
-		style="width: 100%; height: 80vh; display: flex; align-items: center; justify-content: center; flex-direction: column;" />
-{:else}
-	{#await joinPromise}
-		<!-- Wait for room to be created -->
-		<div
-			style="width: 100%; height: 80vh; display: flex; align-items: center; justify-content: center; flex-direction: column;">
-			<div style="margin-top: 50px; margin-bottom: 20px">
-				<DoubleBounce size="60" />
-			</div>
-			<p>Connecting...</p>
-		</div>
-	{:then room}
-		<!-- Display room -->
-		<div
-			bind:clientWidth={screenWidth}
-			bind:clientHeight={screenHeight}
-			style="width: 100%; height: 80vh; position: relative; background: black">
-			{#if audioContext == null}
-				<div
-					style="width: 100%; height: 100%; position: absolute; background: black; z-index: 100; opacity: 0.5">
-					AudioContext could not be started
-				</div>
-			{:else if audioContext.state === 'suspended'}
-				<div
-					style="width: 100%; height: 100%; position: absolute; background: #00000044; z-index: 100; display: flex; justify-content: center; align-items: center">
-					{#if startedAudio}
-						<button disabled><Circle
-								size="24"
-								color="white" /></button>
-					{:else}
-						<button
-							on:click={() => {
-								startedAudio = true;
-								audioContext.resume();
-								audioContext = audioContext;
-							}}>Join Call</button>
-					{/if}
-				</div>
-			{:else}
-				<!-- Control panel: mute, show/hide video, screenshare, endcall, change layout -->
-				<div transition:fade>
-					<CommandPane
-						isMuted={muted}
-						isVideoHidden={videoHidden}
-						isScreenShared={localStream.screenStream != null}
-						{layout}
-						toggleView={switchViewLayout}
-						{toggleMute}
-						{toggleVideo}
-						toggleScreenShare={shareScreen}
-						{endCall} />
-				</div>
-				<!-- End control panel -->
-			{/if}
-			{#if layout == 'main'}
-				<div
-					class="full"
-					style="position: absolute; top: 0; display: flex; flex-direction: row">
-					<div class="mainVideo">
-						<!-- Main video pane -->
-						<div
-							class="container"
-							style="width: 100%; height: 100%;">
-							<div class="video-outer">
-								<img
-									class="noselect"
-									src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7"
-									alt="backing" />
-								<div class="video-contents">
-									<video
-										use:srcObject={[mainStream]}
-										autoplay>
-										<track kind="captions" />
-									</video>
-								</div>
-							</div>
-						</div>
-					</div>
-					<div
-						class="sub container"
-						style="flex: 1; display: flex; flex-wrap: wrap; align-content: flex-start; overflow: auto">
-						{#each streams as stream (stream.id)}
-							<VideoPane
-								{buttonClickAudio}
-								videoStreams={stream.videoStreams}
-								audioStreams={stream.audioStreams}
-								muted={remoteMuted[stream.id] || false}
-								mainId={mainStreamId}
-								id={stream.id}
-								pinPressed={pinStream}
-								isPinned={mainStreamPinned && mainStreamId == stream.id}
-								rotateVideos={() => {
-									stream.videoStreams = [...stream.videoStreams.slice(1), ...stream.videoStreams.slice(0, 1)];
-									streams = streams;
-									if (mainStreamId == stream.id) {
-										mainStream = stream.videoStreams[0].clone();
-									}
-								}}
-								volume={volumes[stream.id] || 0} />
-						{/each}
-						<VideoPane
-							{buttonClickAudio}
-							{muted}
-							mainId={mainStreamId}
-							id={localStream.id}
-							videoStreams={[localStream.screenStream, localStream.videoStream]}
-							audioStreams={[]}
-							volume={volumes[localStream.id]} />
-					</div>
-				</div>
-				<!-- End layout === 'main' -->
-			{:else if layout === 'panel'}
-				<div
-					class="full"
-					style="
-						position: absolute; top: 0; display: flex;
-						align-content: center; justify-content: center; flex-direction: row;
-						flex-wrap: wrap; overflow: auto;">
-					<div
-						style="width: {decideWidth(streams.length + 1, screenWidth, screenHeight)}px;
-							height: {decideWidth(streams.length + 1, screenWidth, screenHeight) / videoRatio}px">
-						<VideoPane
-							{buttonClickAudio}
-							{muted}
-							mainId={mainStreamId}
-							id={localStream.id}
-							videoStreams={[localStream.screenStream, localStream.videoStream]}
-							audioStreams={[]}
-							framed={mainSpeaker === localStream.id}
-							volume={volumes[localStream.id]} />
-					</div>
-					{#each streams as stream (stream.id)}
-						<div
-							style="width: {decideWidth(streams.length + 1, screenWidth, screenHeight)}px;
-								height: {decideWidth(streams.length + 1, screenWidth, screenHeight) / videoRatio}px">
-							<VideoPane
-								{buttonClickAudio}
-								videoStreams={stream.videoStreams}
-								audioStreams={stream.audioStreams}
-								muted={remoteMuted[stream.id] || false}
-								mainId={mainStreamId}
-								id={stream.id}
-								rotateVideos={() => {
-									stream.videoStreams = [...stream.videoStreams.slice(1), ...stream.videoStreams.slice(0, 1)];
-									streams = streams;
-									if (mainStreamId == stream.id) {
-										mainStream = stream.videoStreams[0].clone();
-									}
-								}}
-								framed={mainSpeaker === stream.id}
-								volume={volumes[stream.id] || 0} />
-						</div>
-					{/each}
-				</div>
-				<!-- End layout === "panel" -->
-			{:else}Invalid layout{/if}
-		</div>
-	{:catch error}
-		<p>Failed to join room: {error.message}</p>
-	{/await}
-{/if}
